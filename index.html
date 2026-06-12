@@ -315,7 +315,10 @@
       </div>
     </div>
     <div id="evBrandWrap" style="margin-top:20px">
-      <div class="card-title" style="margin-bottom:3px">브랜드(매장)별 성과 · 직전동기간 대비</div>
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:3px;flex-wrap:wrap">
+        <div class="card-title">브랜드(매장)별 성과 · 직전동기간 대비</div>
+        <label id="evBrandBetaFilter" style="display:none;align-items:center;gap:5px;cursor:pointer;font-size:11.5px;font-weight:600;color:var(--ink2)"><input type="checkbox" id="evBrandBetaOnly" onchange="renderBrandTable()" style="accent-color:#f59e0b"> 🔶 베타 광고 신청 브랜드만</label>
+      </div>
       <div class="card-sub" id="evBrandSub" style="margin-bottom:12px">행 클릭 시 해당 브랜드 상품별 증감 상세 · 이 데이터에서는 매장명이 곧 브랜드입니다</div>
       <div class="scroll"><table class="tbl"><thead><tr><th>브랜드(매장)</th><th class="num th-sort">평균 노출순위</th><th class="num th-sort">기간 판매금액</th><th class="num th-sort">증감률</th><th class="num th-sort">클릭</th><th class="num th-sort">장바구니</th><th class="num th-sort">상승 / 하락</th></tr></thead><tbody id="evBrandTbl"></tbody></table></div>
     </div>
@@ -413,16 +416,18 @@
     <button class="x" onclick="closeProduct()">✕</button>
   </div>
   <div class="cmp" id="pmKpi" style="margin:16px 0 6px"></div>
-  <div class="grid-2" style="margin:14px 0 4px;align-items:start">
-    <div>
-      <div class="card-title" style="margin-bottom:8px">일별 상품 판매 추이 <span style="font-size:11px;font-weight:400;color:var(--ink3)">전체 데이터 기간</span></div>
-      <div class="chart-wrap" style="height:240px"><canvas id="cPmTrend" height="240"></canvas></div>
-      <div id="pmRegNote" style="font-size:11.5px;color:var(--ink2);margin-top:6px"></div>
+  <div style="margin:14px 0 4px">
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">
+      <div class="card-title">상품 판매 추이</div>
+      <div class="seg" id="pmPeriod"><button class="on" data-k="day" onclick="pmSetPeriod('day',this)">일별</button><button data-k="week" onclick="pmSetPeriod('week',this)">주별</button></div>
+      <span style="font-size:11px;color:var(--ink3)">파란 실선 = 판매금액 · 주황 점선 = 클릭수</span>
     </div>
-    <div>
-      <div class="card-title" style="margin-bottom:8px">일별 판매 상세 <span style="font-size:11px;font-weight:400;color:var(--ink3)">최근순</span></div>
-      <div class="scroll" style="height:240px;overflow-y:auto"><table class="tbl"><thead><tr><th>일자</th><th class="num">판매금액</th><th class="num">수량</th><th class="num">클릭</th><th class="num">장바구니</th><th class="num">좋아요</th></tr></thead><tbody id="pmDaily"></tbody></table></div>
-    </div>
+    <div class="chart-wrap" style="height:320px"><canvas id="cPmTrend" height="320"></canvas></div>
+    <div id="pmRegNote" style="font-size:11.5px;color:var(--ink2);margin-top:6px"></div>
+  </div>
+  <div style="margin-top:14px">
+    <div class="card-title" style="margin-bottom:8px">판매 상세 <span style="font-size:11px;font-weight:400;color:var(--ink3)" id="pmDailyLabel">일별 · 최근순</span></div>
+    <div class="scroll" style="height:220px;overflow-y:auto"><table class="tbl"><thead><tr><th>기간</th><th class="num">판매금액</th><th class="num">수량</th><th class="num">클릭</th><th class="num">장바구니</th><th class="num">좋아요</th></tr></thead><tbody id="pmDaily"></tbody></table></div>
   </div>
   <div class="grid-2" style="margin-top:16px;align-items:start">
     <div><div class="card-title" style="margin-bottom:8px">월별 매출</div><div class="scroll" style="max-height:200px"><table class="tbl"><thead><tr><th>월</th><th class="num">매출</th><th class="num">수량</th><th class="num">평균가</th></tr></thead><tbody id="pmMonthly"></tbody></table></div></div>
@@ -547,21 +552,21 @@ function loadPacked(p){
       caG:pCa>0?+(((tCa-pCa)/pCa*100).toFixed(1)):null,
       lkG:pLk>0?+(((tLk-pLk)/pLk*100).toFixed(1)):null};
     // 브랜드(매장)별: 판매 성과(직전동기간 대비) + 평균 노출순위(전체 등록상품 기준)
+    const betaSet=new Set();for(let k=0;k<ev.ps.length;k++){if(ev.bp&&ev.bp[k])betaSet.add(ev.ps[k]);}
     const bM=new Map();
-    for(const p of recs){let b=bM.get(p.si);if(!b){b={si:p.si,name:RAW.stores[p.si],r:0,q:0,prev:0,up:0,down:0,flat:0,sumEo:0,nEo:0,nAll:0,cl:0,ca:0,lk:0,pcl:0,pca:0,plk:0,prods:[]};bM.set(p.si,b);}
+    for(const p of recs){let b=bM.get(p.si);if(!b){b={si:p.si,name:RAW.stores[p.si],r:0,q:0,prev:0,up:0,down:0,flat:0,sumEo:0,nEo:0,nAll:0,cl:0,ca:0,lk:0,pcl:0,pca:0,plk:0,hasBeta:false,prods:[]};bM.set(p.si,b);}
       b.nAll++; if(p.eo>=0){b.sumEo+=p.eo;b.nEo++;}
+      if(betaSet.has(p.pp))b.hasBeta=true;
       if(p.r>0||p.pr>0){b.r+=p.r;b.q+=p.q;b.prev+=p.pr;b.cl+=p.cl;b.ca+=p.ca;b.lk+=p.lk;b.pcl+=p.pcl;b.pca+=p.pca;b.plk+=p.plk;const d=p.r-p.pr;
         b.prods.push({id:p.id,name:p.name,r:Math.round(p.r),q:Math.round(p.q),pr:Math.round(p.pr),pq:Math.round(p.pq),delta:Math.round(d),eo:p.eo,cl:p.cl,ca:p.ca,lk:p.lk});
         if(d>1e-6)b.up++;else if(d<-1e-6)b.down++;else b.flat++;}}
-    const brands=[...bM.values()].filter(b=>b.prods.length>0).map(b=>({si:b.si,name:b.name,r:Math.round(b.r),q:Math.round(b.q),prev:Math.round(b.prev),growth:b.prev>0?+(((b.r-b.prev)/b.prev*100).toFixed(1)):null,avg:b.q>0?Math.round(b.r/b.q):0,up:b.up,down:b.down,flat:b.flat,avgEo:b.nEo?+(b.sumEo/b.nEo).toFixed(1):null,nAll:b.nAll,cl:b.cl,ca:b.ca,lk:b.lk,clG:b.pcl>0?+(((b.cl-b.pcl)/b.pcl*100).toFixed(1)):null,prods:b.prods.sort((x,y)=>y.delta-x.delta)})).sort((a,b)=>b.r-a.r);
+    const brands=[...bM.values()].filter(b=>b.prods.length>0).map(b=>({si:b.si,name:b.name,r:Math.round(b.r),q:Math.round(b.q),prev:Math.round(b.prev),growth:b.prev>0?+(((b.r-b.prev)/b.prev*100).toFixed(1)):null,avg:b.q>0?Math.round(b.r/b.q):0,up:b.up,down:b.down,flat:b.flat,avgEo:b.nEo?+(b.sumEo/b.nEo).toFixed(1):null,nAll:b.nAll,cl:b.cl,ca:b.ca,lk:b.lk,clG:b.pcl>0?+(((b.cl-b.pcl)/b.pcl*100).toFixed(1)):null,hasBeta:b.hasBeta,prods:b.prods.sort((x,y)=>y.delta-x.delta)})).sort((a,b)=>b.r-a.r);
     // 노출순서별 전체 상품 (미판매 포함)
     const expo=recs.slice().sort((a,b)=>(a.eo<0?1e9:a.eo)-(b.eo<0?1e9:b.eo)).map(p=>({id:p.id,name:p.name,store:RAW.stores[p.si],eo:p.eo,r:Math.round(p.r),q:Math.round(p.q),pr:Math.round(p.pr),delta:Math.round(p.r-p.pr),cl:p.cl,ca:p.ca,lk:p.lk}));
     // 기획전 기간 중 일별 판매금액
     const dayMap=new Map();
     for(const rec of recs){const arr2=idx.get(rec.pp);if(!arr2)continue;for(const i of arr2){const dn=dn0+doff[i];if(dn>=ev.s&&dn<=effEnd){let d=dayMap.get(dn);if(!d){d={r:0,q:0,cl:0,ca:0,lk:0,prods:new Map()};dayMap.set(dn,d);}d.r+=rev[i];d.q+=qty[i];d.cl+=click[i];d.ca+=cart[i];d.lk+=like[i];let pp2=d.prods.get(rec.pp);if(!pp2){pp2={id:rec.id,name:rec.name,si:rec.si,r:0,q:0,cl:0,ca:0};d.prods.set(rec.pp,pp2);}pp2.r+=rev[i];pp2.q+=qty[i];pp2.cl+=click[i];pp2.ca+=cart[i];}}}
     const evDaily=[...dayMap.entries()].sort((a,b)=>a[0]-b[0]).map(([dn,d])=>({dn,d:dnStr(dn),r:Math.round(d.r),q:Math.round(d.q),cl:d.cl,ca:d.ca,lk:d.lk,prods:[...d.prods.values()].sort((a,b)=>b.r-a.r).map(p=>({id:p.id,name:p.name,store:RAW.stores[p.si],r:Math.round(p.r),q:Math.round(p.q),cl:p.cl,ca:p.ca}))}));
-    // 베타 광고 상품 집합
-    const betaSet=new Set();for(let k=0;k<ev.ps.length;k++){if(ev.bp&&ev.bp[k])betaSet.add(ev.ps[k]);}
     RAW.eventMetrics[ev.id]={rev:r,qty:q,prev_rev:prev,days:fullDays,cmp_days:cmpDays,ps,pe,prods:ev.pc,ongoing,prev_complete,growth,avg:q>0?r/q:0,detail,brands,expo,eng,evDaily,betaSet,beta:ev.beta||0,catset,started:ev.s<=dmax};
   }
 }
@@ -780,9 +785,9 @@ function rEvents(){
         <div class="ev-stat"><div class="l">기간 판매금액</div><div class="v">${money(e.rev)}</div></div>
         <div class="ev-stat"><div class="l">직전동기간</div><div class="v">${e.prev_rev>0?money(e.prev_rev):'-'}</div></div>
         <div class="ev-stat"><div class="l">증감률</div><div class="v ${e.growth==null?'':(e.growth>=0?'up':'down')}">${e.growth==null?'N/A':pct(e.growth)}</div></div>
-        <div class="ev-stat"><div class="l">클릭수</div><div class="v">${cnt(e.eng?.cl||0)} ${e.eng?.clG!=null?`<span class="${e.eng.clG>=0?'up':'down'}" style="font-size:11px">${pct(e.eng.clG)}</span>`:''}</div></div>
-        <div class="ev-stat"><div class="l">장바구니</div><div class="v">${cnt(e.eng?.ca||0)} ${e.eng?.caG!=null?`<span class="${e.eng.caG>=0?'up':'down'}" style="font-size:11px">${pct(e.eng.caG)}</span>`:''}</div></div>
-        <div class="ev-stat"><div class="l">좋아요</div><div class="v">${cnt(e.eng?.lk||0)} ${e.eng?.lkG!=null?`<span class="${e.eng.lkG>=0?'up':'down'}" style="font-size:11px">${pct(e.eng.lkG)}</span>`:''}</div></div>
+        <div class="ev-stat"><div class="l">클릭수</div><div class="v">${cnt(e.eng?.cl||0)} ${e.eng?.clG!=null?`<span class="${e.eng.clG>=0?'up':'down'}" style="font-size:11px">${pct(e.eng.clG)}</span> <span style="color:var(--ink3);font-size:10px">(${(e.eng.cl-e.eng.pcl)>0?'+':''}${cnt(e.eng.cl-(e.eng?.pcl||0))})</span>`:''}</div></div>
+        <div class="ev-stat"><div class="l">장바구니</div><div class="v">${cnt(e.eng?.ca||0)} ${e.eng?.caG!=null?`<span class="${e.eng.caG>=0?'up':'down'}" style="font-size:11px">${pct(e.eng.caG)}</span> <span style="color:var(--ink3);font-size:10px">(${(e.eng.ca-e.eng.pca)>0?'+':''}${cnt(e.eng.ca-(e.eng?.pca||0))})</span>`:''}</div></div>
+        <div class="ev-stat"><div class="l">좋아요</div><div class="v">${cnt(e.eng?.lk||0)} ${e.eng?.lkG!=null?`<span class="${e.eng.lkG>=0?'up':'down'}" style="font-size:11px">${pct(e.eng.lkG)}</span> <span style="color:var(--ink3);font-size:10px">(${(e.eng.lk-e.eng.plk)>0?'+':''}${cnt(e.eng.lk-(e.eng?.plk||0))})</span>`:''}</div></div>
         <div class="ev-stat"><div class="l">판매수량</div><div class="v">${cnt(e.qty)}</div></div>
         <div class="ev-stat"><div class="l">평균 판매가</div><div class="v">${e.qty>0?won(e.avg):'-'}</div></div>
         <div class="ev-stat"><div class="l">등록상품</div><div class="v">${e.prods}개</div></div>
@@ -804,7 +809,7 @@ function openEv(id){
   const curLabel=m.ongoing?`진행기간 (${m.cmp_days}일)`:'기간 매출';
   const eg=m.eng||{};
   const engG=(v,pv)=>pv>0?+(((v-pv)/pv*100).toFixed(1)):null;
-  const engBox=(label,v,pv)=>{const g=engG(v,pv);return `<div class="cmp-box"><div class="l">${label}</div><div class="v">${cnt(v)} ${g!=null?`<span class="${g>=0?'up':'down'}" style="font-size:12px">${pct(g)}</span>`:`<span style="color:var(--ink3);font-size:11px">직전 ${cnt(pv)}</span>`}</div></div>`;};
+  const engBox=(label,v,pv)=>{const g=engG(v,pv);const d=v-pv;const ds=d>0?`+${cnt(d)}건`:d<0?`${cnt(d)}건`:'±0';return `<div class="cmp-box"><div class="l">${label}</div><div class="v">${cnt(v)} ${g!=null?`<span class="${g>=0?'up':'down'}" style="font-size:12px">${pct(g)}</span> <span style="color:var(--ink3);font-size:11px">(${ds})</span>`:`<span style="color:var(--ink3);font-size:11px">직전 ${cnt(pv)} → ${ds}</span>`}</div></div>`;};
   document.getElementById('evCmp').innerHTML=`
     <div class="cmp-box"><div class="l">${prevLabel}</div><div class="v" style="color:var(--ink3)">${m.prev_rev>0?money(m.prev_rev):'-'}</div></div>${arrow}
     <div class="cmp-box"><div class="l">${curLabel}</div><div class="v" style="color:var(--primary)">${money(m.rev)}</div></div>
@@ -839,19 +844,16 @@ function openEv(id){
     scales:{x:{grid:{display:false},ticks:{font:{size:9}}},y:{grid:{color:GRID},ticks:{callback:v=>money(v),font:{size:9}},position:'left'},y1:{grid:{display:false},ticks:{callback:v=>cnt(v),font:{size:9}},position:'right'}}});
   }else{if(C.cEvDaily)C.cEvDaily.destroy();document.getElementById('cEvDaily').getContext('2d').clearRect(0,0,9999,9999);}
   // 브랜드(매장)별 성과
-  const brands=m.brands||[];
+  window._curBrands=m.brands||[];window._curEvId=id;
   const bsub=document.getElementById('evBrandSub');
   if(m.ongoing)bsub.innerHTML='행 클릭 시 브랜드 상품별 증감 상세 · <span class="note">진행중 — 기간 매출 미완성</span>';
   else if(!m.prev_complete)bsub.innerHTML='행 클릭 시 브랜드 상품별 증감 상세 · <span class="note">직전동기간이 데이터 시작 이전 — 비교 불완전</span>';
   else bsub.textContent='행 클릭 시 해당 브랜드 상품별 증감 상세 · 이 데이터에서는 매장명이 곧 브랜드입니다';
-  const btb=document.getElementById('evBrandTbl');
-  if(brands.length){
-    btb.innerHTML=brands.map(b=>{
-      const dir=b.growth==null?'na':(b.growth>=0?'up':'down');
-      const g=b.growth==null?'<span style="color:var(--ink3)">N/A</span>':`<span class="${dir}">${pct(b.growth)}</span>`;
-      return `<tr class="clickable" onclick="toggleBrand(this,${id},${b.si})"><td style="color:var(--ink);font-weight:600">${esc(b.name)}</td><td class="num" data-v="${b.avgEo==null?99999:b.avgEo}">${b.avgEo==null?'-':b.avgEo}<span style="color:var(--ink3);font-size:10px"> /${b.nAll}</span></td><td class="num" style="color:var(--ink)" data-v="${b.r}">${cnt(b.r)}</td><td class="num" data-v="${b.growth==null?-1e12:b.growth}">${g}</td><td class="num" data-v="${b.cl||0}">${cnt(b.cl||0)} ${b.clG!=null?`<span class="${b.clG>=0?'up':'down'}" style="font-size:10px">${pct(b.clG)}</span>`:''}</td><td class="num" data-v="${b.ca||0}">${cnt(b.ca||0)}</td><td class="num" data-v="${b.up-b.down}"><span class="up">▲${b.up}</span> · <span class="down">▼${b.down}</span></td></tr>`;
-    }).join('');
-  }else btb.innerHTML='<tr><td colspan="7" class="empty">기간 내 매출 브랜드 없음</td></tr>';
+  const hasBetaBrands=window._curBrands.some(b=>b.hasBeta);
+  const bf=document.getElementById('evBrandBetaFilter');
+  bf.style.display=hasBetaBrands?'flex':'none';
+  document.getElementById('evBrandBetaOnly').checked=false;
+  renderBrandTable();
   // 노출순서별 상품
   const expo=m.expo||[];
   document.getElementById('evExpoTbl').innerHTML=expo.length?expo.map(p=>{
@@ -862,6 +864,20 @@ function openEv(id){
   document.getElementById('evPanel').scrollIntoView({behavior:'smooth',block:'nearest'});
 }
 function closeEv(){selEv=null;document.getElementById('evPanel').classList.remove('show');document.querySelectorAll('.ev').forEach(c=>c.classList.remove('sel'));}
+function renderBrandTable(){
+  const brands=window._curBrands||[];const id=window._curEvId;
+  const betaOnly=document.getElementById('evBrandBetaOnly')?.checked;
+  const list=betaOnly?brands.filter(b=>b.hasBeta):brands;
+  const btb=document.getElementById('evBrandTbl');
+  if(list.length){
+    btb.innerHTML=list.map(b=>{
+      const dir=b.growth==null?'na':(b.growth>=0?'up':'down');
+      const g=b.growth==null?'<span style="color:var(--ink3)">N/A</span>':`<span class="${dir}">${pct(b.growth)}</span>`;
+      const betaBadge=b.hasBeta?'<span style="background:rgba(245,158,11,.15);color:#f59e0b;padding:1px 5px;border-radius:3px;font-size:9.5px;font-weight:700;margin-left:5px">🔶 베타</span>':'';
+      return `<tr class="clickable" onclick="toggleBrand(this,${id},${b.si})"><td style="color:var(--ink);font-weight:600">${esc(b.name)}${betaBadge}</td><td class="num" data-v="${b.avgEo==null?99999:b.avgEo}">${b.avgEo==null?'-':b.avgEo}<span style="color:var(--ink3);font-size:10px"> /${b.nAll}</span></td><td class="num" style="color:var(--ink)" data-v="${b.r}">${cnt(b.r)}</td><td class="num" data-v="${b.growth==null?-1e12:b.growth}">${g}</td><td class="num" data-v="${b.cl||0}">${cnt(b.cl||0)} ${b.clG!=null?`<span class="${b.clG>=0?'up':'down'}" style="font-size:10px">${pct(b.clG)}</span>`:''}</td><td class="num" data-v="${b.ca||0}">${cnt(b.ca||0)}</td><td class="num" data-v="${b.up-b.down}"><span class="up">▲${b.up}</span> · <span class="down">▼${b.down}</span></td></tr>`;
+    }).join('');
+  }else btb.innerHTML=`<tr><td colspan="7" class="empty">${betaOnly?'베타 광고 신청 브랜드 없음':'기간 내 매출 브랜드 없음'}</td></tr>`;
+}
 function showEvDay(dayData,evId){
   if(!dayData)return;
   const wrap=document.getElementById('evDayDetail');wrap.style.display='';
@@ -1108,18 +1124,20 @@ function openProduct(id){
     <div class="cmp-box"><div class="l">좋아요</div><div class="v">${cnt(tLk)}</div></div>
     <div class="cmp-box"><div class="l">전환율 (클릭→구매)</div><div class="v">${cvr}</div></div>
     <div class="cmp-box"><div class="l">판매일수</div><div class="v">${dayM.size}일</div></div>`;
-  const labels=[],data=[];for(let dn=RAW.dmin;dn<=RAW.dmax;dn++){labels.push(dnStr(dn).slice(5));data.push(Math.round(dayM.get(dn)?.r||0));}
+  // store daily data for period toggle
+  window._pmDayM=dayM;window._pmRegLine=null;
+  const evSpans=[];const nDays=RAW.dmax-RAW.dmin;
+  for(const ev of RAW.events){if(!ev.ps.includes(pp))continue;const i0=ev.s-RAW.dmin,i1=ev.e-RAW.dmin;if(i1>=0&&i0<=nDays)evSpans.push({i0:Math.max(0,i0),i1:Math.min(nDays,i1),name:ev.name});}
+  window._pmEvSpans=evSpans;
   let regLine=null;
-  if(regdn!=null){const ri=regdn-RAW.dmin;if(ri>0&&ri<=labels.length-1)regLine={idx:ri,label:dnStr(regdn)};}
-  const evSpans=[];
-  for(const ev of RAW.events){if(!ev.ps.includes(pp))continue;const i0=ev.s-RAW.dmin,i1=ev.e-RAW.dmin;if(i1>=0&&i0<=labels.length-1)evSpans.push({i0:Math.max(0,i0),i1:Math.min(labels.length-1,i1),name:ev.name});}
+  if(regdn!=null){const ri=regdn-RAW.dmin;if(ri>0&&ri<=nDays){regLine={idx:ri,label:dnStr(regdn)};}}
+  window._pmRegLine=regLine;
   document.getElementById('pmRegNote').innerHTML=(regdn!=null
-    ?`<span style="color:#ef4444">▮</span> 빨간 점선 = 등록일(${dnStr(regdn)}), 왼쪽 음영 = 등록 전(판매 불가)`+(regdn-RAW.dmin<=0?' · 등록일 데이터 시작 이전이라 생략':'')
-    :'<span style="color:var(--ink3)">기획전 등록 이력 없음 (매출 0 = 단순 미판매)</span>')
-    +(evSpans.length?` · <span style="color:#2563eb">▮</span> 파란 음영 = 기획전 노출 기간(${evSpans.length}건)`:'');
-  mk('cPmTrend','line',{labels,datasets:[{label:'매출',data,borderColor:'#2563eb',backgroundColor:'rgba(37,99,235,.09)',borderWidth:2,pointRadius:0,fill:true,tension:.3}]},
-    {regLine,evSpans,plugins:{legend:{display:false},tooltip:{...TT,callbacks:{label:c=>'  '+won(c.raw)}}},scales:{x:{grid:{display:false},ticks:{maxTicksLimit:12,font:{size:9}}},y:{grid:{color:GRID},ticks:{callback:v=>money(v),font:{size:9}}}}});
-  document.getElementById('pmDaily').innerHTML=[...dayM.entries()].sort((a,b)=>b[0]-a[0]).map(([dn,o])=>`<tr><td class="mono" style="font-size:11.5px">${dnStr(dn)}</td><td class="num">${cnt(Math.round(o.r))}</td><td class="num">${cnt(Math.round(o.q))}</td><td class="num">${cnt(o.cl||0)}</td><td class="num">${cnt(o.ca||0)}</td><td class="num">${cnt(o.lk||0)}</td></tr>`).join('')||'<tr><td colspan="6" class="empty">판매 기록 없음</td></tr>';
+    ?`<span style="color:#ef4444">▮</span> 등록일(${dnStr(regdn)}) · <span style="color:#2563eb">▮</span> 기획전 노출 ${evSpans.length}건`
+    :'<span style="color:var(--ink3)">기획전 등록 이력 없음</span>')
+    +(evSpans.length?'':' · 기획전 노출 없음');
+  document.querySelectorAll('#pmPeriod button').forEach(b=>b.classList.toggle('on',b.dataset.k==='day'));
+  pmSetPeriod('day');
   document.getElementById('pmMonthly').innerHTML=[...monM.entries()].sort((a,b)=>a[0]-b[0]).map(([k,o])=>`<tr><td>${monLabel(k)}</td><td class="num">${cnt(Math.round(o.r))}</td><td class="num">${cnt(Math.round(o.q))}</td><td class="num">${o.q>0?won(o.r/o.q):'-'}</td></tr>`).join('')||'<tr><td colspan="4" class="empty">데이터 없음</td></tr>';
   const evrows=[];
   for(const ev of RAW.events){if(!ev.ps.includes(pp))continue;const m=RAW.eventMetrics[ev.id];
@@ -1131,6 +1149,39 @@ function openProduct(id){
   document.getElementById('pmodal').classList.add('show');
 }
 function closeProduct(){document.getElementById('pmodal').classList.remove('show');if(C.cPmTrend){C.cPmTrend.destroy();delete C.cPmTrend;}}
+function pmSetPeriod(mode,btn){
+  if(btn){document.querySelectorAll('#pmPeriod button').forEach(b=>b.classList.remove('on'));btn.classList.add('on');}
+  const dayM=window._pmDayM;if(!dayM)return;
+  const regLine=window._pmRegLine,evSpans=window._pmEvSpans||[];
+  if(mode==='week'){
+    // aggregate by ISO week
+    const wM=new Map();
+    for(const [dn,o] of dayM){const w=isoWeek(dn);let e=wM.get(w);if(!e){e={r:0,q:0,cl:0,ca:0,lk:0,minDn:dn,maxDn:dn};wM.set(w,e);}e.r+=o.r;e.q+=o.q;e.cl+=(o.cl||0);e.ca+=(o.ca||0);e.lk+=(o.lk||0);e.minDn=Math.min(e.minDn,dn);e.maxDn=Math.max(e.maxDn,dn);}
+    const weeks=[...wM.entries()].sort((a,b)=>a[1].minDn-b[1].minDn);
+    const lb=weeks.map(([w])=>w),dr=weeks.map(([,o])=>Math.round(o.r)),dc=weeks.map(([,o])=>o.cl);
+    // remap regLine/evSpans to week indices
+    let wReg=null;
+    if(regLine){const ri=weeks.findIndex(([,o])=>regLine.idx>=o.minDn-RAW.dmin&&regLine.idx<=o.maxDn-RAW.dmin);if(ri>=0)wReg={idx:ri,label:regLine.label};}
+    const wSpans=evSpans.map(s=>{const i0=weeks.findIndex(([,o])=>o.maxDn-RAW.dmin>=s.i0);const i1=weeks.findIndex(([,o])=>o.minDn-RAW.dmin>s.i1);return{i0:Math.max(0,i0),i1:(i1<0?weeks.length-1:i1-1),name:s.name};}).filter(s=>s.i1>=s.i0);
+    pmRenderChart(lb,dr,dc,wReg,wSpans);
+    document.getElementById('pmDailyLabel').textContent='주별';
+    document.getElementById('pmDaily').innerHTML=weeks.length?weeks.slice().reverse().map(([w,o])=>`<tr><td class="mono" style="font-size:11.5px">${w}</td><td class="num">${cnt(Math.round(o.r))}</td><td class="num">${cnt(Math.round(o.q))}</td><td class="num">${cnt(o.cl)}</td><td class="num">${cnt(o.ca)}</td><td class="num">${cnt(o.lk)}</td></tr>`).join(''):'<tr><td colspan="6" class="empty">데이터 없음</td></tr>';
+  }else{
+    const labels=[],dr=[],dc=[];
+    for(let dn=RAW.dmin;dn<=RAW.dmax;dn++){labels.push(dnStr(dn).slice(5));const d=dayM.get(dn);dr.push(Math.round(d?.r||0));dc.push(d?.cl||0);}
+    pmRenderChart(labels,dr,dc,regLine,evSpans);
+    document.getElementById('pmDailyLabel').textContent='일별 · 최근순';
+    document.getElementById('pmDaily').innerHTML=[...dayM.entries()].sort((a,b)=>b[0]-a[0]).map(([dn,o])=>`<tr><td class="mono" style="font-size:11.5px">${dnStr(dn)}</td><td class="num">${cnt(Math.round(o.r))}</td><td class="num">${cnt(Math.round(o.q))}</td><td class="num">${cnt(o.cl||0)}</td><td class="num">${cnt(o.ca||0)}</td><td class="num">${cnt(o.lk||0)}</td></tr>`).join('')||'<tr><td colspan="6" class="empty">판매 기록 없음</td></tr>';
+  }
+}
+function pmRenderChart(labels,dataR,dataCl,regLine,evSpans){
+  mk('cPmTrend','line',{labels,datasets:[
+    {label:'판매금액',data:dataR,borderColor:'#2563eb',backgroundColor:'rgba(37,99,235,.08)',borderWidth:2,pointRadius:0,fill:true,tension:.3,yAxisID:'y'},
+    {label:'클릭수',data:dataCl,borderColor:'#f59e0b',borderWidth:1.5,pointRadius:0,borderDash:[3,2],tension:.3,yAxisID:'y1'}]},
+  {regLine:regLine||undefined,evSpans:evSpans||undefined,
+    plugins:{legend:{display:true,labels:{font:{size:10.5},boxWidth:14,usePointStyle:true}},tooltip:{...TT,callbacks:{label:c=>'  '+c.dataset.label+': '+(c.datasetIndex===0?won(c.raw):cnt(c.raw))}}},
+    scales:{x:{grid:{display:false},ticks:{maxTicksLimit:16,font:{size:9}}},y:{grid:{color:GRID},ticks:{callback:v=>money(v),font:{size:9}},position:'left'},y1:{grid:{display:false},ticks:{callback:v=>cnt(v),font:{size:9}},position:'right'}}});
+}
 function picked(w){const f=document.getElementById(w==='ev'?'fileEv':'fileSa').files[0];if(w==='ev'){upEv=f;document.getElementById('fnEv').textContent=f?'✓ '+f.name:'';document.getElementById('dropEv').classList.toggle('ok',!!f);}else{upSa=f;document.getElementById('fnSa').textContent=f?'✓ '+f.name:'';document.getElementById('dropSa').classList.toggle('ok',!!f);}}
 function readCSV(file){return new Promise((res,rej)=>{const r=new FileReader();r.onload=()=>{let t;try{t=new TextDecoder('euc-kr').decode(r.result);}catch(e){t=new TextDecoder('utf-8').decode(r.result);}if(!t.includes('상품ID')&&!t.includes('판매일자')&&!t.includes('기획전'))t=new TextDecoder('utf-8').decode(r.result);Papa.parse(t,{header:true,skipEmptyLines:true,complete:x=>res(x.data),error:rej});};r.onerror=rej;r.readAsArrayBuffer(file);});}
 function num(v){const n=parseFloat(String(v).replace(/,/g,''));return isFinite(n)?n:0;}
