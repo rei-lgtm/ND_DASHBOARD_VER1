@@ -328,11 +328,26 @@
       <div class="scroll" style="height:300px;overflow-y:auto;margin-top:10px"><table class="tbl"><thead><tr><th class="th-sort">노출</th><th>상품명</th><th>매장</th><th class="num th-sort">판매금액</th><th class="num th-sort">클릭</th><th class="num th-sort">장바구니</th><th class="num th-sort">증감</th></tr></thead><tbody id="evExpoTbl"></tbody></table></div>
     </div>
     <div id="evPeerWrap" style="margin-top:20px">
+    <div id="evBetaTrack" style="display:none;margin-top:20px">
+      <div class="card-title" style="margin-bottom:3px">🔶 베타 광고 브랜드 · 상품 등록 추적</div>
+      <div class="card-sub">베타 광고 신청 브랜드가 기획전 전후 7일 내에 상품을 등록했는지 확인 — 기획전이 상품 등록 활동을 유도했는지 판별</div>
+      <div id="evBetaTrackBody" style="margin-top:10px"></div>
+    </div>
       <div style="display:flex;align-items:center;gap:10px;margin-bottom:3px;flex-wrap:wrap">
         <div class="card-title">🔬 기획전 vs 비교군 · 상품당 일평균 비교</div>
         <button class="btn" style="font-size:11px;padding:3px 10px" onclick="peerRender()">🔄 다시 뽑기</button>
       </div>
       <div class="card-sub">기획전 참여 브랜드의 같은 카테고리 비등록 상품과 상품당 일평균 판매금액을 비교 — 기획전 노출 효과를 직관적으로 보여줍니다</div>
+      <div style="display:flex;align-items:center;gap:14px;margin:8px 0;flex-wrap:wrap;font-size:12px">
+        <label style="display:flex;align-items:center;gap:5px;cursor:pointer;font-weight:600;color:var(--ink2)"><input type="checkbox" id="peerExcludeChar" onchange="peerRender()" checked style="accent-color:#6366f1"> 캐릭터/IP 상품 제외</label>
+        <span style="color:var(--ink3);font-size:11px" id="peerCharInfo"></span>
+        <button class="btn" style="font-size:10.5px;padding:2px 8px" onclick="document.getElementById('peerExemptWrap').style.display=document.getElementById('peerExemptWrap').style.display==='none'?'':'none'">예외 매장 설정</button>
+      </div>
+      <div id="peerExemptWrap" style="display:none;margin-bottom:10px;padding:10px 12px;background:var(--bg);border-radius:8px;border:1px solid var(--border);font-size:12px">
+        <div style="margin-bottom:6px;color:var(--ink2)">캐릭터 상품이어도 <b>정품 취급 매장</b>이면 제외하지 않습니다. 매장명을 쉼표로 구분해 입력하세요.</div>
+        <input id="peerExemptInput" class="ms-search" style="width:100%;margin:0" placeholder="예: 산리오코리아, ABC마트" value="" onchange="savePeerExempt()">
+        <div style="margin-top:4px;color:var(--ink3);font-size:11px">저장하면 브라우저에 기억됩니다.</div>
+      </div>
       <div class="cmp" id="evPeerKpi" style="margin:10px 0 6px"></div>
       <div class="chart-wrap" style="height:220px;margin-top:8px"><canvas id="cEvPeer" height="220"></canvas></div>
       <div class="card-sub" id="evPeerNote" style="margin-top:6px"></div>
@@ -469,6 +484,11 @@ const PACKED_B64="H4sIAKF+L2oC/3S9a3Nc53Eu+ldQTlUKrGI8637Z32RbObIiWSlLrlRyan+QY5
 let RAW=null, VIEW=null, evSortKey='rev', selEv=null;
 const EXCLUDE_STORES=['이브네'];let RAW_EXCLUDED=[];
 const PRODUCT_URL='https://abr.ge/xzg9fw?type=product&pageId=';
+const CHAR_KEYWORDS=['키티','헬로키티','hello kitty','산리오','sanrio','한교동','hangyodon','몬치치','monchhichi','디즈니','disney','미키마우스','미니마우스','포켓몬','pokemon','피카츄','짱구','크레용신짱','원피스','루피','스누피','snoopy','쿠로미','kuromi','마이멜로디','시나모롤','폼폼푸린','리틀트윈스타','카카오','라이언','어피치','무민','moomin','미피','miffy','스폰지밥','톰과제리','가필드','타이니탄','bt21','뽀로로','핑크퐁'];
+function isCharProduct(name){const nl=(name||'').toLowerCase();return CHAR_KEYWORDS.some(k=>nl.includes(k));}
+function getPeerExemptStores(){return (localStorage.getItem('peer_exempt')||'').split(',').map(s=>s.trim()).filter(Boolean);}
+function savePeerExempt(){const v=document.getElementById('peerExemptInput').value;localStorage.setItem('peer_exempt',v);toast('예외 매장 저장됨');peerRender();}
+function loadPeerExempt(){const v=localStorage.getItem('peer_exempt')||'';document.getElementById('peerExemptInput').value=v;}
 const FILT={start:null,end:null,months:new Set(),cats:new Set(),events:new Set()};
 const CAT_MAP={"스터드":["악세사리","귀걸이"],"드롭":["악세사리",null],"링/원터치":["악세사리","귀걸이"],"커프/클립/귀찌":["악세사리","귀걸이"],"은침":["악세사리","귀걸이"],"실버925":["악세사리",null],"골드":["악세사리","귀걸이"],"14k":["악세사리",null],"14,18k":["악세사리","귀걸이"],"18k":["악세사리",null],"세트":[null,null],"기타":[null,null],"써지컬":["악세사리",null],"이어커프":["악세사리","귀걸이"],"바벨":["악세사리","피어싱"],"링":["악세사리","피어싱"],"사선":["악세사리","피어싱"],"터널/확장":["악세사리","피어싱"],"패션피어싱":["악세사리","피어싱"],"골드14,18k":["악세사리",null],"롱":["악세사리","목걸이"],"초커":["악세사리","목걸이"],"펜던트(메탈/큐빅/스톤/진주)":["악세사리","목걸이"],"펜던트(비즈/에폭/아크릴)":["악세사리","목걸이"],"펜던트(실버/써지컬)":["악세사리","목걸이"],"체인":["악세사리",null],"심플링(넌큐빅)":["악세사리","반지"],"심플링(큐빅/스톤/진주)":["악세사리","반지"],"볼드링":["악세사리","반지"],"오픈링":["악세사리","반지"],"비즈링":["악세사리","반지"],"단품":["악세사리","반지"],"심플(논펜던트)":["악세사리",null],"펜던트/참":["악세사리",null],"매듭/가죽":["악세사리",null],"레이어드":["악세사리",null],"뱅글":["악세사리",null],"비즈":["악세사리",null],"랩":["악세사리","팔찌"],"핀":[null,null],"집게핀":[null,null],"머리끈":[null,null],"헤어밴드/터번":["악세사리","헤어악세사리"],"곱창밴드":[null,null],"2종":["악세사리","세트"],"3종":["악세사리","세트"],"마스크스트랩":["악세사리","파인주얼리"],"순금":[null,null],"모바일acc":["악세사리","파인주얼리"],"시계":[null,null],"바지체인":["악세사리","파인주얼리"],"키링/가방악세서리":["악세사리","파인주얼리"],"-":["악세사리","파인주얼리"],"포장부자재":["악세사리","주문제작/부자재"],"제품택,카드":["악세사리","주문제작/부자재"],"주문제작":[null,null],"조립부자재":["악세사리","주문제작/부자재"],"재료부자재":["악세사리","주문제작/부자재"],"18k/14k":["부자재/뷰티미용","미용/케어"],"백금":["부자재/뷰티미용","미용/케어"],"팬던트":["부자재/뷰티미용","미용/케어"],"다이아":["부자재/뷰티미용","미용/케어"],"원석":["부자재/뷰티미용","미용/케어"],"미용용품":[null,null],"비즈/아크릴/호마이카":["부자재/뷰티미용","부자재"],"진주/원석/보석":["부자재/뷰티미용","부자재"],"실리콘":["부자재/뷰티미용","부자재"],"펜던트":["부자재/뷰티미용","부자재"],"체인/줄":["부자재/뷰티미용","부자재"],"귀걸이(침) 부자재":["부자재/뷰티미용","부자재"],"기타부속재료":["부자재/뷰티미용","부자재"],"포장지":["부자재/뷰티미용","포장재료"],"케이스/선물상자":["부자재/뷰티미용","포장재료"],"봉투":["부자재/뷰티미용","포장재료"],"리본/끈":["부자재/뷰티미용","포장재료"],"물류":["부자재/뷰티미용","포장재료"],"택/카드":["부자재/뷰티미용","포장재료"],"진열장":["부자재/뷰티미용","포장재료"],"인형꾸미기":["부자재/뷰티미용","수예/공예부자재"],"원단/솜":["부자재/뷰티미용","수예/공예부자재"],"뜨개질용품":["부자재/뷰티미용","수예/공예부자재"],"공구":["부자재/뷰티미용","수예/공예부자재"],"반지 진열대":["부자재/뷰티미용","주얼리소품"],"팔찌/목걸이 진열대":["부자재/뷰티미용","주얼리소품"],"귀걸이 진열대":["부자재/뷰티미용","주얼리소품"],"보관함/케이스":["부자재/뷰티미용","주얼리소품"],"미니보석함":["부자재/뷰티미용","주얼리소품"],"돋보기안경":["부자재/뷰티미용","주얼리소품"],"세척용품":["부자재/뷰티미용","주얼리소품"],"썬그라스":["부자재/뷰티미용","주얼리소품"],"키즈":["부자재/뷰티미용","주얼리소품"],"소프트/하드렌즈":["부자재/뷰티미용","주얼리소품"],"화장품/미용":["부자재/뷰티미용","뷰티/미용"],"헤어용품/기기":["부자재/뷰티미용","뷰티/미용"],"가발":["부자재/뷰티미용","뷰티/미용"],"케어용품":["부자재/뷰티미용",null],"네일스티커":["부자재/뷰티미용","네일용품"],"프레임":["부자재/뷰티미용","네일용품"],"파츠":["부자재/뷰티미용","네일용품"],"젤/메니큐어":["부자재/뷰티미용","네일용품"],"긴소매":["의류",null],"민소매/나시":["의류",null],"블라우스":[null,null],"셔츠/남방":[null,null],"맨투맨/스웨트셔츠":["의류",null],"후드":["의류",null],"니트/스웨터":[null,null],"코튼팬츠":["의류",null],"숏팬츠":["의류",null],"수트/슬랙스":["의류",null],"코트":[null,null],"집업":["의류","여성상의"],"무스탕/퍼":["의류",null],"자켓/점퍼":[null,null],"가디건":[null,null],"패딩":["의류",null],"미니/미디원피스":["의류",null],"롱원피스":["의류",null],"점프수트":["의류",null],"데님팬츠":["의류",null],"미니/미디스커트":["의류","여성하의"],"롱스커트":["의류","여성하의"],"자켓":["의류",null],"집업/점퍼":["의류",null],"투피스":[null,null],"수트/팬츠세트":["의류","여성원피스/세트"],"파자마/홈웨어":["의류","언더웨어/잠옷"],"여성속옷상의":["의류","언더웨어/잠옷"],"여성속옷하의":["의류","언더웨어/잠옷"],"여성속옷세트":["의류","언더웨어/잠옷"],"남성속옷":["의류","언더웨어/잠옷"],"반소매":["의류","남성상의"],"수트/세트":["의류","남성상의"],"트레이닝/조거팬츠":["의류","남성하의"],"바람막이":["의류","남성아우터"],"상의":[null,null],"하의":[null,null],"수영복/비치웨어":[null,null],"원피스/세트":["의류","여성스포츠/레저"],"전통한복":["의류","한복"],"생활한복":["의류","한복"],"네일용품":["의류","뷰티/미용"],"숄더백/토트백":["패션잡화","가방/지갑"],"크로스/메신저백":["패션잡화","가방/지갑"],"에코백/캔버스":["패션잡화","가방/지갑"],"백팩":["패션잡화","가방/지갑"],"파우치/파우치백":["패션잡화","가방/지갑"],"클러치":["패션잡화","가방/지갑"],"여행가방":["패션잡화","가방/지갑"],"지갑":["패션잡화","가방/지갑"],"캡/야구모자":["패션잡화","모자"],"벙거지/페도라/버킷":["패션잡화","모자"],"비니/트루퍼":["패션잡화","모자"],"두건/베레모":["패션잡화","모자"],"귀마개":["패션잡화","모자"],"양말/스타킹/레깅스":["패션잡화","패션소품"],"장갑":["패션잡화","패션소품"],"머플러/숄":["패션잡화","패션소품"],"손수건/스카프":["패션잡화","패션소품"],"벨트/넥타이":["패션잡화","패션소품"],"우산/양산":["패션잡화","패션소품"],"키링/가방악세사리":["패션잡화","패션악세사리"],"모바일악세사리":["패션잡화","패션악세사리"],"신발악세사리":["패션잡화","패션악세사리"],"브로치":["패션잡화","패션악세사리"],"안경/선글라스/안경소품":["패션잡화","패션악세사리"],"마스크/마스크스트랩":["패션잡화","패션악세사리"],"헤어밴드/터번/반다나":["패션잡화","헤어악세사리"],"(아동)악세사리":["패션잡화","아동악세사리/잡화"],"(아동)헤어악세사리":["패션잡화","아동악세사리/잡화"],"(아동)모자/장갑":["패션잡화","아동악세사리/잡화"],"(아동)스카프/손수건/머플러":["패션잡화","아동악세사리/잡화"],"(아동)가방/지갑/파우치":["패션잡화","아동악세사리/잡화"],"구두":["패션잡화","여성신발"],"로퍼/플랫":["패션잡화","여성신발"],"샌들/쪼리/슬리퍼":["패션잡화",null],"운동화/스니커즈":["패션잡화",null],"부츠/워커":["패션잡화",null],"실내화":[null,null],"구두/로퍼":[null,null],"기능화":["패션잡화","남성신발"],"티셔츠":["아동복","상의"],"맨투맨/후드":["아동복","상의"],"바지":["아동복","하의"],"청바지":["아동복","하의"],"스커트":["아동복","하의"],"레깅스":["아동복","하의"],"원피스":["아동복",null],"상하복":["아동복","상하복세트"],"실내복":["아동복",null],"조끼":["아동복","아우터"],"우비/담요":["아동복","아우터"],"트레이닝복":["아동복","스포츠의류"],"발레복":["아동복","스포츠의류"],"투피스/세트":["아동복","주니어"],"아우터":["아동복","주니어"],"바디수트":["아동복","베이비"],"운동화":["아동복","신발"],"부츠":["아동복","신발"],"계절":["아동복","신발"],"(아동) 주얼리":["아동복","아동악세서리/잡화"],"(아동)가방/파우치":["아동복","아동악세서리/잡화"],"헤어acc":["아동복","아동악세서리/잡화"],"악세서리":["아동복","아동악세서리/잡화"],"(아동)모자":["아동복","아동악세서리/잡화"],"양말/타이즈":["아동복","아동악세서리/잡화"],"완구":["아동복","아동악세서리/잡화"],"장난감/완구":["아동복","아동문구/완구"],"피규어":["아동복","아동문구/완구"],"문구":["아동복","아동문구/완구"],"홈웨어":["아동복","기타"],"커플룩":["아동복","기타"],"한복":["아동복","기타"],"시즌용품":["아동복","기타"],"오브제/장식":["홈데코/라이프","홈데코소품"],"이벤트/파티용품":["홈데코/라이프","홈데코소품"],"오르골/워터볼":["홈데코/라이프","홈데코소품"],"조명/스탠드/무드등":["홈데코/라이프",null],"수납/바구니":["홈데코/라이프","홈데코소품"],"트레이":["홈데코/라이프","홈데코소품"],"캔들/디퓨저/향":["홈데코/라이프","홈데코소품"],"모빌/월데코":["홈데코/라이프","홈데코소품"],"액자/거울":["홈데코/라이프","홈데코소품"],"카페트/러그/발매트":["홈데코/라이프","홈패브릭"],"이불/배개/커버":["홈데코/라이프","홈패브릭"],"담요/블랭킷":["홈데코/라이프","홈패브릭"],"쿠션/방석":["홈데코/라이프","홈패브릭"],"수건/타월":["홈데코/라이프","홈패브릭"],"커튼/블라인드":["홈데코/라이프","홈패브릭"],"유아용패브릭":["홈데코/라이프","홈패브릭"],"유리공예품":["홈데코/라이프","공예품"],"화병/도자기공예":["홈데코/라이프","공예품"],"뜨개/자수공예":["홈데코/라이프","공예품"],"가죽공예":["홈데코/라이프","공예품"],"자개공예":["홈데코/라이프","공예품"],"한지공예":["홈데코/라이프","공예품"],"관광기념품":["홈데코/라이프","공예품"],"욕실용품":["홈데코/라이프","생활용품"],"청소/세탁용품":["홈데코/라이프","생활용품"],"야외용품":["홈데코/라이프","생활용품"],"자동차용품":["홈데코/라이프","생활용품"],"필기구":["홈데코/라이프","문구/완구/인형"],"스티커/노트":["홈데코/라이프","문구/완구/인형"],"사무용품":["홈데코/라이프","문구/완구/인형"],"완구/인형":["홈데코/라이프","문구/완구/인형"],"테이블":["홈데코/라이프","실내인테리어"],"의자":["홈데코/라이프","실내인테리어"],"시트/벽지/필름":["홈데코/라이프","실내인테리어"],"기타 가구":["홈데코/라이프","실내인테리어"],"남자한복":["홈데코/라이프","한복"],"여자한복":["홈데코/라이프","한복"],"어린이한복":["홈데코/라이프","한복"],"개량한복":["홈데코/라이프","한복"],"퓨전한복":["홈데코/라이프","한복"],"대형가전":["홈데코/라이프","가전"],"중/소형가전":["홈데코/라이프","가전"],"그릇/식기":["주방용품","식기/용기"],"컵/잔/머그":["주방용품","식기/용기"],"물병/텀블러":["주방용품","식기/용기"],"접시/플레이트":["주방용품","식기/용기"],"식품용기/다용도통":["주방용품","식기/용기"],"도시락":["주방용품","식기/용기"],"양념통/오일병":["주방용품","식기/용기"],"유리/크리스탈":["주방용품","식기/용기"],"냄비/솥":["주방용품","주방조리도구"],"팬/그릴/웍":["주방용품","주방조리도구"],"조리도구/화로":["주방용품","주방조리도구"],"칼/가위/커팅기구":["주방용품","주방조리도구"],"주전자/티포트":["주방용품","주방조리도구"],"도마":["주방용품","주방조리도구"],"커피용품":["주방용품","주방조리도구"],"베이킹용품":["주방용품","주방조리도구"],"수입브랜드그릇":["주방용품","혼수용품"],"국내브랜드":["주방용품","혼수용품"],"혼수소품":["주방용품","혼수용품"],"식탁보/테이블매트":["주방용품","주방 패브릭"],"행주/수건/냅킨":["주방용품","주방 패브릭"],"코스터":["주방용품","주방 패브릭"],"주방소품":["주방용품","주방 패브릭"],"한식":["주방용품","업소용품"],"양식":["주방용품","업소용품"],"일식":["주방용품","업소용품"],"중식":["주방용품","업소용품"],"카페/베이킹":["주방용품","업소용품"],"코스터/받침":["주방용품","주방용품"],"식기정리/건조대":["주방용품","주방용품"],"수세미/솔":["주방용품","주방용품"],"주방잡화":["주방용품","주방용품"],"티셔츠/나시":["반려동물","패션"],"원피스/올인원":["반려동물","패션"],"자켓/가디건/조끼":["반려동물","패션"],"패딩/아우터":["반려동물","패션"],"레인코트/수영복":["반려동물","패션"],"견주의류/커플룩":["반려동물","패션"],"코스튬":["반려동물","패션"],"헤어/모자":["반려동물","패션잡화"],"케이프/스카프":["반려동물","패션잡화"],"신발/양말":["반려동물","패션잡화"],"악세서리/가방":["반려동물","패션잡화"],"목줄/하네스/이름표":["반려동물","이동/산책용품"],"이동장/캐리어":["반려동물","이동/산책용품"],"기타산책용품":["반려동물","이동/산책용품"],"하우스/텐트":["반려동물","하우스/리빙용품"],"쿠션/방석/매트":["반려동물","하우스/리빙용품"],"식기/급수기":["반려동물","하우스/리빙용품"],"안전문/울타리":["반려동물","하우스/리빙용품"],"계단":["반려동물","하우스/리빙용품"],"옷장/행거/옷걸이":["반려동물","하우스/리빙용품"],"봉제/인형":["반려동물","장난감"],"공/원반/고무":["반려동물","장난감"],"캣토이/타워":["반려동물","장난감"],"기타장난감":["반려동물","장난감"],"목욕용품":["반려동물","미용/건강"],"발톱/미용기기":["반려동물","미용/건강"],"에센스/향수":["반려동물","미용/건강"],"눈/귀/구강관리":["반려동물","미용/건강"],"강아지사료":["반려동물","사료/간식"],"영양제/간식":["반려동물","사료/간식"],"고양이사료/간식/영양제":["반려동물","사료/간식"],"패드/봉투":["반려동물","위생/배변용품"],"모래/화장실":["반려동물","위생/배변용품"],"위생용품":["반려동물","위생/배변용품"],"과자/젤리":["식품","수입식품"],"커피/차":["식품","수입식품"],"견과/건과류":["식품","수입식품"],"축산가공식품":["식품","수입식품"],"가공식품":["식품","수입식품"],"간편조리식품":["식품","수입식품"],"건강식품":["식품","수입식품"],"과일/야채":["식품","농산물"],"양곡류":["식품","농산물"],"농산가공품":["식품","농산물"],"해조류(김)":["식품","수산물"],"어류":["식품","수산물"],"수산가공품":["식품","수산물"],"건강기능식품":["식품","건강식품"],"인삼/홍삼":["식품","건강식품"],"간편식/가공식품":["식품","건강식품"],"헬스/다이어트":["식품","건강식품"],"영양제":["식품","건강식품"],"간편식품":["식품","가공식품"],"전통주":["식품","음료"],"커피/차/음료":["식품","음료"],"생화":["꽃","생화"],"프리저브드":["꽃","생화"],"꽃바구니/꽃다발":["꽃","생화"],"난/관엽":["꽃","생화"],"조화":["꽃","조화"],"인조목":["꽃","조화"],"시즌상품":["꽃","조화"],"화분":["꽃","가드닝용품"],"화병":["꽃","가드닝용품"],"바구니":["꽃","가드닝용품"],"원예도구":["꽃","가드닝용품"],"흙/비료/자갈":["꽃","가드닝용품"],"식물생장":["꽃","가드닝용품"]};
 const CF={level:'대',bigs:new Set(),mids:new Set(),smalls:new Set()};
@@ -894,6 +914,52 @@ function openEv(id){
   bf.style.display=hasBetaBrands?'flex':'none';
   document.getElementById('evBrandBetaOnly').checked=false;
   renderBrandTable();
+  // 베타 광고 브랜드 상품 등록 추적
+  const btWrap=document.getElementById('evBetaTrack');
+  if(m.beta&&m.betaSet&&m.betaSet.size){
+    btWrap.style.display='';
+    const evStart=RAW.eventById[id].s;
+    // 베타 브랜드별 상품 등록 분석
+    const betaBrands=new Map(); // storeIdx → {name, products:[]}
+    for(const pp of m.betaSet){
+      const si=RAW.psi[pp];
+      let b=betaBrands.get(si);if(!b){b={name:RAW.stores[si],products:[]};betaBrands.set(si,b);}
+      const regDn=RAW.regByPos?RAW.regByPos.get(pp):null;
+      const daysDiff=regDn!=null?(regDn-evStart):null;
+      const isNew=regDn!=null&&daysDiff>=-30; // 기획전 시작 30일 이내 등록 = 신상
+      const inWindow=regDn!=null&&daysDiff>=-7&&daysDiff<=7; // 전후 7일
+      // 기간 매출
+      let rev=0;for(let i=0;i<RAW.n;i++){if(RAW.pid[i]!==pp)continue;const dn=RAW.dn0+RAW.doff[i];if(dn>=RAW.eventById[id].s&&dn<=effEnd)rev+=RAW.rev[i];}
+      b.products.push({pp,id:RAW.pids[pp],name:RAW.names[pp],regDn,daysDiff,isNew,inWindow,rev:Math.round(rev)});
+    }
+    let html='';
+    for(const [si,b] of betaBrands){
+      const pre7=b.products.filter(p=>p.daysDiff!=null&&p.daysDiff>=-7&&p.daysDiff<0).length;
+      const post7=b.products.filter(p=>p.daysDiff!=null&&p.daysDiff>=0&&p.daysDiff<=7).length;
+      const newCnt=b.products.filter(p=>p.isNew).length;
+      const oldCnt=b.products.length-newCnt;
+      const noReg=b.products.filter(p=>p.regDn==null).length;
+      html+=`<div class="card mb" style="padding:12px 14px">
+        <div style="font-weight:700;color:var(--ink);margin-bottom:6px">${esc(b.name)} <span style="font-size:11px;color:var(--ink3)">· 베타 등록상품 ${b.products.length}개</span></div>
+        <div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:8px;font-size:12px">
+          <span>전 7일 등록: <b style="color:var(--primary)">${pre7}개</b></span>
+          <span>후 7일 등록: <b style="color:var(--primary)">${post7}개</b></span>
+          <span>신상: <b style="color:#10b981">${newCnt}개</b></span>
+          <span>기존: <b>${oldCnt}개</b></span>
+          ${noReg?`<span style="color:var(--ink3)">등록일 미상 ${noReg}개</span>`:''}
+        </div>
+        <table class="mini-tbl"><tr style="color:var(--ink3);font-size:10.5px"><td>상품명</td><td style="text-align:right">등록일</td><td style="text-align:center">구분</td><td style="text-align:right">기간 매출</td></tr>
+        ${b.products.sort((a,b2)=>(a.daysDiff??999)-(b2.daysDiff??999)).map(p=>{
+          const regStr=p.regDn!=null?dnStr(p.regDn):'미상';
+          const diffStr=p.daysDiff!=null?(p.daysDiff>=0?'D+'+p.daysDiff:'D'+p.daysDiff):'';
+          const tag=p.isNew?'<span style="color:#10b981;font-weight:700">신상</span>':'<span style="color:var(--ink3)">기존</span>';
+          const highlight=p.inWindow?'background:rgba(37,99,235,.06)':'';
+          return `<tr class="clickable" style="${highlight}" onclick="openProduct(${p.id})"><td style="max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(p.name)}</td><td style="text-align:right;font-family:JetBrains Mono;font-size:10.5px;white-space:nowrap">${regStr} <span style="color:${p.inWindow?'var(--primary)':'var(--ink3)'};font-size:10px">${diffStr}</span></td><td style="text-align:center">${tag}</td><td style="text-align:right;font-family:JetBrains Mono">${cnt(p.rev)}</td></tr>`;
+        }).join('')}</table>
+      </div>`;
+    }
+    document.getElementById('evBetaTrackBody').innerHTML=html;
+  }else{btWrap.style.display='none';}
   // 노출순서별 상품
   const expo=m.expo||[];
   document.getElementById('evExpoTbl').innerHTML=expo.length?expo.map(p=>{
@@ -928,61 +994,86 @@ function peerRender(){
   const ev4=RAW.eventById[window._curEvId];
   const evProdSet4=new Set(ev4.ps);
   const nDays=Math.max(1, effEnd2-ev4.s+1);
-  const evStores=new Set();for(const pp of ev4.ps)evStores.add(RAW.psi[pp]);
-  // 비교군 수집
-  const pool=[];
-  for(const pp of allPeers){
-    if(!evStores.has(RAW.psi[pp]))continue;
-    let cur=0;const dm=peerProdDay.get(pp);if(dm)for(const rv of dm.values())cur+=rv;
-    if(cur>0)pool.push({pp,cur,daily:cur/nDays,name:RAW.names[pp],store:RAW.stores[RAW.psi[pp]],id:RAW.pids[pp]});}
-  // 부족하면 → 같은 카테고리 전체로 확장
-  let expanded=false;
-  if(pool.length<Math.max(10,evProdN)){
-    for(const pp of allPeers){if(pool.some(p=>p.pp===pp))continue;
-      let cur=0;const dm=peerProdDay.get(pp);if(dm)for(const rv of dm.values())cur+=rv;
-      if(cur>0)pool.push({pp,cur,daily:cur/nDays,name:RAW.names[pp],store:RAW.stores[RAW.psi[pp]],id:RAW.pids[pp]});}
-    expanded=true;}
-  // 상위 5% 매출 상품 제거 (아웃라이어 방지)
-  pool.sort((a,b)=>b.daily-a.daily);
-  const cut5=Math.max(1,Math.floor(pool.length*0.05));
-  const poolCut=pool.slice(cut5);
-  // 랜덤 추출
-  const sampleN=Math.min(evProdN,poolCut.length);
-  for(let i=poolCut.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[poolCut[i],poolCut[j]]=[poolCut[j],poolCut[i]];}
-  const sampled=poolCut.slice(0,sampleN);
-  // 기획전 상품 일평균 목록
-  const evDailys=[];
-  for(const pp of evProdSet4){let cur=0;
+  // 브랜드별 매칭: 같은 브랜드 안에서 기획전 vs 비기획전 비교
+  const evStores=new Map(); // si → {evProds:[], peerProds:[]}
+  // 기획전 상품: 브랜드별로 모음 (매출>0만)
+  for(const pp of ev4.ps){
+    const si=RAW.psi[pp]; let cur=0;
     for(let i=0;i<RAW.n;i++){if(RAW.pid[i]!==pp)continue;const dn=RAW.dn0+RAW.doff[i];if(dn>=ev4.s&&dn<=effEnd2)cur+=RAW.rev[i];}
-    evDailys.push(cur/nDays);}
-  evDailys.sort((a,b)=>a-b);
-  const peerDailys=sampled.map(p=>p.daily).sort((a,b)=>a-b);
-  // 중앙값 (아웃라이어에 강건)
-  const median=arr=>arr.length?arr[Math.floor(arr.length/2)]:0;
-  const evMed=median(evDailys);
-  const peerMed=median(peerDailys);
-  const liftPct=peerMed>0?((evMed-peerMed)/peerMed*100):null;
-  const multiple=peerMed>0?(evMed/peerMed):null;
+    if(cur<=0)continue;
+    let s=evStores.get(si);if(!s){s={name:RAW.stores[si],evProds:[],peerProds:[]};evStores.set(si,s);}
+    s.evProds.push({pp,daily:cur/nDays});}
+  // 캐릭터 상품 필터
+  const excludeChar=document.getElementById('peerExcludeChar')?.checked;
+  const exemptStores=new Set(getPeerExemptStores().map(s=>s.toLowerCase()));
+  let charExcluded=0;
+  // 비교군 수집
+  const peerPool=new Map(); // si → [{pp,daily}]
+  for(const pp of allPeers){
+    const si=RAW.psi[pp];if(!evStores.has(si))continue;
+    // 캐릭터 필터
+    if(excludeChar&&isCharProduct(RAW.names[pp])&&!exemptStores.has(RAW.stores[si].toLowerCase())){charExcluded++;continue;}
+    let cur=0;const dm=peerProdDay.get(pp);if(dm)for(const rv of dm.values())cur+=rv;
+    if(cur<=0)continue;
+    let arr=peerPool.get(si);if(!arr){arr=[];peerPool.set(si,arr);}
+    arr.push({pp,daily:cur/nDays,name:RAW.names[pp],store:RAW.stores[si],id:RAW.pids[pp]});}
+  document.getElementById('peerCharInfo').textContent=excludeChar?`캐릭터/IP ${charExcluded}개 제외됨`:'';
+  // 브랜드별로 상위 5% 제외 + 랜덤 매칭
+  let matchedEv=0,matchedPeer=0,sumEvD=0,sumPeerD=0;
+  const brandResults=[];const allSampledPeers=[];
+  for(const [si,s] of evStores){
+    let pp=peerPool.get(si)||[];
+    if(pp.length===0)continue; // 비교 불가
+    // 상위 5% 제거
+    pp.sort((a,b)=>b.daily-a.daily);
+    const cut=Math.max(1,Math.floor(pp.length*0.05));
+    pp=pp.slice(cut);
+    // 기획전 상품 수만큼 랜덤 추출
+    const n=Math.min(s.evProds.length,pp.length);
+    for(let i=pp.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[pp[i],pp[j]]=[pp[j],pp[i]];}
+    const sampled=pp.slice(0,n);
+    const evAvg=s.evProds.reduce((a,p)=>a+p.daily,0)/s.evProds.length;
+    const peerAvg=sampled.length?sampled.reduce((a,p)=>a+p.daily,0)/sampled.length:0;
+    matchedEv+=Math.min(s.evProds.length,n);matchedPeer+=n;
+    sumEvD+=evAvg*Math.min(s.evProds.length,n);sumPeerD+=peerAvg*n;
+    brandResults.push({name:s.name,evN:s.evProds.length,peerN:n,evAvg,peerAvg});
+    sampled.forEach(p=>allSampledPeers.push(p));
+  }
+  const evDailyAvg=matchedEv>0?sumEvD/matchedEv:0;
+  const peerDailyAvg=matchedPeer>0?sumPeerD/matchedPeer:0;
+  const liftPct=peerDailyAvg>0?((evDailyAvg-peerDailyAvg)/peerDailyAvg*100):null;
+  const multiple=peerDailyAvg>0?(evDailyAvg/peerDailyAvg):null;
   // 일별 차트 (합계)
   const peerDayR=new Map();
-  for(const p of sampled){const dm=peerProdDay.get(p.pp);if(dm)for(const [dn,rv] of dm){peerDayR.set(dn,(peerDayR.get(dn)||0)+rv);}}
+  for(const p of allSampledPeers){const dm=peerProdDay.get(p.pp);if(dm)for(const [dn,rv] of dm){peerDayR.set(dn,(peerDayR.get(dn)||0)+rv);}}
   const pLabels=[],pEvD=[],pPeerD=[];
   for(let dn=evS;dn<=effEnd2;dn++){pLabels.push(dnStr(dn).slice(5));pEvD.push(Math.round(evDayR.get(dn)||0));pPeerD.push(Math.round(peerDayR.get(dn)||0));}
+  // KPI
   document.getElementById('evPeerKpi').innerHTML=`
-    <div class="cmp-box"><div class="l">기획전 상품<br>일평균 중앙값</div><div class="v" style="color:var(--primary);font-size:20px">${won(evMed)}</div><div class="ins-sub">${cnt(evProdN)}개 · ${nDays}일</div></div>
-    <div class="cmp-box"><div class="l">비교군 상품<br>일평균 중앙값</div><div class="v" style="font-size:20px">${won(peerMed)}</div><div class="ins-sub">${cnt(sampleN)}개 / ${cnt(pool.length)}개</div></div>
+    <div class="cmp-box"><div class="l">기획전 상품<br>일평균 판매금액</div><div class="v" style="color:var(--primary);font-size:20px">${won(evDailyAvg)}</div><div class="ins-sub">${cnt(matchedEv)}개 (매출 있는 것만)</div></div>
+    <div class="cmp-box"><div class="l">비교군 상품<br>일평균 판매금액</div><div class="v" style="font-size:20px">${won(peerDailyAvg)}</div><div class="ins-sub">${cnt(matchedPeer)}개 (브랜드별 매칭)</div></div>
     <div class="cmp-box"><div class="l">기획전 노출 효과</div><div class="v ${liftPct==null?'':(liftPct>=0?'up':'down')}" style="font-size:22px;font-weight:900">${liftPct!=null?(liftPct>=0?'+':'')+liftPct.toFixed(0)+'%':'N/A'}</div><div class="ins-sub">${multiple!=null?multiple.toFixed(1)+'배':''}</div></div>`;
   if(pLabels.length>1){
     mk('cEvPeer','line',{labels:pLabels,datasets:[
-      {label:'기획전 ('+evProdN+'개)',data:pEvD,borderColor:'#2563eb',backgroundColor:'rgba(37,99,235,.08)',borderWidth:2,pointRadius:2,fill:true,tension:.3},
-      {label:'비교군 ('+sampleN+'개)',data:pPeerD,borderColor:'#94a3b8',backgroundColor:'rgba(148,163,184,.06)',borderWidth:1.8,borderDash:[5,3],pointRadius:1,fill:true,tension:.3}]},
+      {label:'기획전 ('+matchedEv+'개)',data:pEvD,borderColor:'#2563eb',backgroundColor:'rgba(37,99,235,.08)',borderWidth:2,pointRadius:2,fill:true,tension:.3},
+      {label:'비교군 ('+matchedPeer+'개)',data:pPeerD,borderColor:'#94a3b8',backgroundColor:'rgba(148,163,184,.06)',borderWidth:1.8,borderDash:[5,3],pointRadius:1,fill:true,tension:.3}]},
     {plugins:{legend:{display:true,labels:{font:{size:10.5},boxWidth:14,usePointStyle:true}},tooltip:{...TT,callbacks:{label:c=>'  '+c.dataset.label+': '+won(c.raw)}}},scales:{x:{grid:{display:false},ticks:{font:{size:9}}},y:{grid:{color:GRID},ticks:{callback:v=>won(v),font:{size:9}}}}});
   }else{if(C.cEvPeer)C.cEvPeer.destroy();}
-  // 비교군 상위 상품 목록 (원인 파악용)
-  const topPeers=sampled.slice().sort((a,b)=>b.daily-a.daily).slice(0,8);
-  document.getElementById('evPeerNote').innerHTML='비교군 = <b>'+(expanded?'동일 카테고리 확장':'기획전 브랜드의 같은 카테고리')+'</b>에서 상위 5% 매출 상품 제외 후 '+cnt(sampleN)+'개 추출. <b>중앙값</b> 기준.'
-    +'<div style="margin-top:8px;font-size:11.5px"><b>비교군 상위 상품</b> (일평균 높은 순)</div>'
-    +'<table class="mini-tbl" style="margin-top:4px">'+topPeers.map(p=>'<tr class="clickable" onclick="openProduct('+p.id+')"><td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+esc(p.name)+' <span style="color:var(--ink3)">'+esc(p.store)+'</span></td><td style="text-align:right;font-family:JetBrains Mono;white-space:nowrap">'+won(p.daily)+'/일</td></tr>').join('')+'</table>';
+  // 브랜드별 비교 + 비교군 상위 상품
+  const topPeers=allSampledPeers.sort((a,b)=>b.daily-a.daily).slice(0,6);
+  let noteHtml='<b>브랜드별 매칭 비교</b>: 각 브랜드의 기획전 상품 수만큼 비교군을 추출해 브랜드 단위로 비교 (상위 5% 제외). 매출 0인 기획전 상품은 제외.';
+  if(brandResults.length){
+    noteHtml+='<table class="mini-tbl" style="margin-top:8px"><tr style="color:var(--ink3);font-size:10px"><td>브랜드</td><td style="text-align:right">기획전</td><td style="text-align:right">비교군</td><td style="text-align:right">차이</td></tr>';
+    brandResults.sort((a,b)=>b.evAvg-a.evAvg);
+    for(const br of brandResults.slice(0,8)){
+      const diff=br.peerAvg>0?((br.evAvg-br.peerAvg)/br.peerAvg*100):null;
+      noteHtml+=`<tr><td>${esc(br.name)} <span style="color:var(--ink3);font-size:10px">${br.evN}:${br.peerN}</span></td><td style="text-align:right;font-family:JetBrains Mono">${won(br.evAvg)}</td><td style="text-align:right;font-family:JetBrains Mono">${won(br.peerAvg)}</td><td style="text-align:right" class="${diff==null?'':(diff>=0?'up':'down')}">${diff!=null?(diff>=0?'+':'')+diff.toFixed(0)+'%':'N/A'}</td></tr>`;}
+    noteHtml+='</table>';}
+  if(topPeers.length){
+    noteHtml+='<div style="margin-top:8px;font-size:11px"><b>비교군 상위 상품</b></div><table class="mini-tbl">';
+    for(const p of topPeers)noteHtml+=`<tr class="clickable" onclick="openProduct(${p.id})"><td style="max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(p.name)} <span style="color:var(--ink3)">${esc(p.store)}</span></td><td style="text-align:right;font-family:JetBrains Mono">${won(p.daily)}/일</td></tr>`;
+    noteHtml+='</table>';}
+  document.getElementById('evPeerNote').innerHTML=noteHtml;
 }
 function renderBrandTable(){
   const brands=window._curBrands||[];const id=window._curEvId;
@@ -1610,6 +1701,7 @@ async function tryAutoLoad(){
     buildFilterOptions();
     applyFilters();
     pinInit();
+    loadPeerExempt();
     if(aiGetKey())document.getElementById('aiKeyBox').style.display='none';
     document.getElementById('splash').style.display='none';
     document.getElementById('dataSource').textContent=src==='csv'?'📂 data/ 폴더 CSV':'📦 내장 데이터';
